@@ -1,2 +1,20 @@
 # ChineseNanoGPT
+
 中文的微型GPT2训练
+
+## 数据集
+
+* 中文维基数据集
+* 下载地址: [Link](https://pan.baidu.com/s/1v1sw8wb0NUvnSC4NlMuQfg?pwd=ba5n) 提取码: ba5n
+* 数据放在 data/wiki_zh 目录下
+* 读取数据，并进行token转换预处理并保存
+
+```shell
+poetry run python data/prepare.py
+```
+
+## 采用poetry进行项目管理
+
+```shell
+poetry install
+```
