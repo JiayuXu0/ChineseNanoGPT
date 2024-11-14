@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "chinesenanogpt"
+version = "0.1.0"
+description = ""
+authors = ["JiayuXu <420249001@qq.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.10.15"
+torch = "^2.5.1"
+torchvision = "^0.20.1"
+torchaudio = "^2.5.1"
+transformers = "^4.46.2"
+black = "^24.10.0"
+yapf = "^0.43.0"
+isort = "^5.13.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
