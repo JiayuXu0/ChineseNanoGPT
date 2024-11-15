@@ -21,11 +21,10 @@ wandb_log = True
 wandb_project = "Chinese-GPT"
 wandb_run_name = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 # 数据相关
-dataset = "openwebtext"
-batch_size = 8
+batch_size = 10  # 3060 10G显存使用batch=10
 block_size = 512
 # 模型相关
-device = "cuda:0"
+device = "cuda"
 init_from = (
     "scratch"  # 可选值：'scratch'(从头训练) 或 'resume'(继续训练) 或 'gpt2*'
 )
