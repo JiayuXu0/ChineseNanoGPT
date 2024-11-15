@@ -1,6 +1,7 @@
 import math
 import os
 import time
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -16,10 +17,9 @@ out_dir = "out"
 eval_interval = 500
 log_interval = 1
 # wandb日志设置
-wandb_log = False
-wandb_entity = "karpathy"
-wandb_project = "owt"
-wandb_run_name = "owt1"
+wandb_log = True
+wandb_project = "Chinese-GPT"
+wandb_run_name = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 # 数据相关
 dataset = "openwebtext"
 batch_size = 32
@@ -51,7 +51,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 # 简易数据加载器
-data_dir = os.path.join("data", dataset)
+data_dir = "data"
 train_data = np.memmap(
     os.path.join(data_dir, "train.bin"), dtype=np.uint16, mode="r"
 )
@@ -84,7 +84,6 @@ def get_batch(split):
 
 
 # 模型初始化
-# 待办：这部分API还需要改进
 model_args = dict(
     n_layer=n_layer,
     n_head=n_head,
@@ -96,21 +95,6 @@ if init_from == "scratch":
     # 从头开始训练
     gptconf = GPTConfig(**model_args)
     model = GPT(gptconf)
-elif init_from == "resume":
-    # 恢复训练
-    ckpt_path = os.path.join(out_dir, "ckpt.pt")
-    checkpoint = torch.load(ckpt_path)
-    checkpoint_model_args = checkpoint["model_args"]
-    for k, v in model_args.items():
-        assert checkpoint_model_args[k] == v, "for now"
-    gptconf = GPTConfig(**model_args)
-    model = GPT(gptconf)
-    model.load_state_dict(checkpoint["model"])
-elif init_from.startswith("gpt2"):
-    # 从gpt2模型初始化
-    model = GPT.from_pretrained(init_from)
-    if block_size < model.block_size:
-        model.crop_block_size(block_size)
 model.to(device)
 
 
@@ -122,7 +106,7 @@ def estimate_loss(eval_iters=50):
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
             X, Y = get_batch(split)
-            with torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16):
+            with torch.amp.autocast(device_type=device, dtype=torch.bfloat16):
                 logits, loss = model(X, Y)
             losses[k] = loss.item()
         out[split] = losses.mean()
@@ -132,8 +116,6 @@ def estimate_loss(eval_iters=50):
 
 # 优化器
 optimizer = model.configure_optimizers(weight_decay, learning_rate, betas)
-if init_from == "resume":
-    optimizer.load_state_dict(checkpoint["optimizer"])
 
 
 # 学习率衰减调度器（带预热的余弦衰减）
@@ -153,7 +135,7 @@ def get_lr(iter):
 
 # 日志记录
 if wandb_log:
-    wandb.init(project=wandb_project, entity=wandb_entity, name=wandb_run_name)
+    wandb.init(project=wandb_project, name=wandb_run_name)
     wandb.config = {
         "batch_size": batch_size,
         "block_size": block_size,
@@ -203,7 +185,7 @@ while True:
                 torch.save(checkpoint, os.path.join(out_dir, "ckpt.pt"))
 
     X, Y = get_batch("train")
-    with torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16):
+    with torch.amp.autocast(device_type=device, dtype=torch.bfloat16):
         logits, loss = model(X, Y)
 
     optimizer.zero_grad(set_to_none=True)

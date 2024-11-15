@@ -163,3 +163,4 @@ cython_debug/
 data/wiki_zh/*
 *.bin
 .DS_Store
+wandb/*
