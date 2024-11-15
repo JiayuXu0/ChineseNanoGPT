@@ -9,39 +9,44 @@ import wandb
 
 from model import GPT, GPTConfig
 
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = (
+    "max_split_size_mb:128,expandable_segments:True"
+)
 
 # -----------------------------------------------------------------------------
 # 设置参数
 # 输入/输出
 out_dir = "out"
-eval_interval = 500
+eval_interval = 2000
 log_interval = 1
 # wandb日志设置
 wandb_log = True
 wandb_project = "Chinese-GPT"
 wandb_run_name = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 # 数据相关
-batch_size = 10  # 3060 10G显存使用batch=10
-block_size = 512
+batch_size = 8  # 从10降到4
+block_size = 1024  # 从1024降到512
 # 模型相关
 device = "cuda"
 init_from = (
     "scratch"  # 可选值：'scratch'(从头训练) 或 'resume'(继续训练) 或 'gpt2*'
 )
-dropout = 0.1
-n_layer = 12
-n_head = 12
-n_embd = 768
+dropout = 0
+n_layer = 12  # 从12降到8
+n_head = 12  # 从12降到8
+n_embd = 768  # 从768降到512
 # adamw优化器参数
-learning_rate = 2.5e-4  # 最大学习率
-max_iters = 500000  # 训练总迭代次数
-weight_decay = 1e-2
+gradient_accumulation_steps = 5 * 8
+learning_rate = 6e-4  # 最大学习率
+max_iters = 600000  # 训练总迭代次数
+weight_decay = 1e-1
 betas = (0.9, 0.95)
 # 学习率衰减设置
 decay_lr = True  # 是否使用学习率衰减
 warmup_iters = 2000  # 预热步数
-lr_decay_iters = 320000  # 学习率衰减的总步数
-min_lr = 1e-5  # 最小学习率
+lr_decay_iters = 600000  # 学习率衰减的总步数
+min_lr = 6e-5  # 最小学习率
+grad_clip = 1.0  # 梯度裁剪阈值
 # -----------------------------------------------------------------------------
 
 os.makedirs(out_dir, exist_ok=True)
@@ -95,6 +100,9 @@ if init_from == "scratch":
     gptconf = GPTConfig(**model_args)
     model = GPT(gptconf)
 model.to(device)
+
+# 使用 torch.compile 编译模型
+model = torch.compile(model, mode="reduce-overhead")
 
 
 @torch.no_grad()
@@ -150,8 +158,9 @@ iter_num = 0
 num_tokens = 0
 best_val_loss = 1e9
 t0 = time.time()
+# 在训练循环之前初始化 scaler
+scaler = torch.amp.GradScaler("cuda")
 while True:
-
     # 根据迭代次数决定学习率
     if decay_lr:
         lr = get_lr(iter_num)
@@ -178,7 +187,7 @@ while True:
             )
         if losses["val"] < best_val_loss:
             best_val_loss = losses["val"]
-            if iter_num > 0:  # 当首次循环的时候不保存checkpoint
+            if iter_num > 0:
                 checkpoint = {
                     "model": model.state_dict(),
                     "optimizer": optimizer.state_dict(),
@@ -188,20 +197,39 @@ while True:
                 torch.save(checkpoint, os.path.join(out_dir, "ckpt.pt"))
                 gc.collect()
                 torch.cuda.empty_cache()
+
+    # 修改训练步骤以支持梯度累积
+    # 只在累积完成后更新优化器
+    is_accumulation_step = iter_num % gradient_accumulation_steps != 0
+
     X, Y = get_batch("train")
     with torch.amp.autocast(device_type=device, dtype=torch.bfloat16):
         logits, loss = model(X, Y)
+        # 根据梯度累积步数缩放损失
+        loss = loss / gradient_accumulation_steps
 
-    optimizer.zero_grad(set_to_none=True)
-    loss.backward()
-    optimizer.step()
+    # 使用scaler进行反向传播
+    scaler.scale(loss).backward()
+
+    # 只在非累积步骤时更新参数
+    if not is_accumulation_step:
+        if grad_clip != 0.0:
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+        # 使用scaler更新优化器
+        scaler.step(optimizer)
+        scaler.update()
+        optimizer.zero_grad(set_to_none=True)
 
     t1 = time.time()
     dt = t1 - t0
     t0 = t1
     if iter_num % log_interval == 0:
-        lossf = loss.item()
+        lossf = (
+            loss.item() * gradient_accumulation_steps
+        )  # 还原实际损失值用于显示
         print(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms")
+
     iter_num += 1
     num_tokens += X.numel()
 
