@@ -5,68 +5,52 @@ import time
 import numpy as np
 import torch
 import wandb
-from transformers import BertTokenizer
 
 from model import GPT, GPTConfig
 
-# 加载预训练的中文 BERT 模型的 tokenizer
-tokenizer = BertTokenizer.from_pretrained("bert-base-chinese")
-
-# 示例文本
-text = "你好，世界！"
-
-# 对文本进行 tokenization
-tokens = tokenizer.tokenize(text)
-print(tokens)
-
-# 将 tokens 转换为 IDs
-ids = tokenizer.convert_tokens_to_ids(tokens)
-print(ids)
-
-vocab_size = tokenizer.vocab_size
-print(f"词汇表大小: {vocab_size}")
-
 
 # -----------------------------------------------------------------------------
-# settings, todo argparse or something
-# I/O
+# 设置参数
+# 输入/输出
 out_dir = "out"
 eval_interval = 500
 log_interval = 1
-# wandb logging
+# wandb日志设置
 wandb_log = False
 wandb_entity = "karpathy"
 wandb_project = "owt"
-wandb_run_name = "owt1"  # 'run' + str(time.time())
-# data
+wandb_run_name = "owt1"
+# 数据相关
 dataset = "openwebtext"
 batch_size = 32
 block_size = 512
-# model
+# 模型相关
 device = "cuda:0"
-init_from = "scratch"  # 'scratch' or 'resume' or 'gpt2*'
+init_from = (
+    "scratch"  # 可选值：'scratch'(从头训练) 或 'resume'(继续训练) 或 'gpt2*'
+)
 dropout = 0.1
 n_layer = 12
 n_head = 12
 n_embd = 768
-# adamw optimizer
-learning_rate = 2.5e-4  # max learning rate
-max_iters = 500000  # total number of training iterations
+# adamw优化器参数
+learning_rate = 2.5e-4  # 最大学习率
+max_iters = 500000  # 训练总迭代次数
 weight_decay = 1e-2
 betas = (0.9, 0.95)
-# learning rate decay settings
-decay_lr = True  # whether to decay the learning rate
-warmup_iters = 2000  # how many steps to warm up for
-lr_decay_iters = 320000  # how many steps to decay the learning rate for
-min_lr = 1e-5  # minimum learning rate
+# 学习率衰减设置
+decay_lr = True  # 是否使用学习率衰减
+warmup_iters = 2000  # 预热步数
+lr_decay_iters = 320000  # 学习率衰减的总步数
+min_lr = 1e-5  # 最小学习率
 # -----------------------------------------------------------------------------
 
 os.makedirs(out_dir, exist_ok=True)
 torch.manual_seed(1337)
-torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
-torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
-# poor man's data loader, TODO use real DataLoader...
+# 简易数据加载器
 data_dir = os.path.join("data", dataset)
 train_data = np.memmap(
     os.path.join(data_dir, "train.bin"), dtype=np.uint16, mode="r"
@@ -99,8 +83,8 @@ def get_batch(split):
     return x, y
 
 
-# model init
-# TODO I don't love this whole part/API yet
+# 模型初始化
+# 待办：这部分API还需要改进
 model_args = dict(
     n_layer=n_layer,
     n_head=n_head,
@@ -109,12 +93,11 @@ model_args = dict(
     dropout=dropout,
 )
 if init_from == "scratch":
-    # init a new model from scratch
+    # 从头开始训练
     gptconf = GPTConfig(**model_args)
     model = GPT(gptconf)
 elif init_from == "resume":
-    # resume training from a checkpoint.
-    # TODO: do we resume iter_num etc too? (yes...)
+    # 恢复训练
     ckpt_path = os.path.join(out_dir, "ckpt.pt")
     checkpoint = torch.load(ckpt_path)
     checkpoint_model_args = checkpoint["model_args"]
@@ -124,7 +107,7 @@ elif init_from == "resume":
     model = GPT(gptconf)
     model.load_state_dict(checkpoint["model"])
 elif init_from.startswith("gpt2"):
-    # initialize from OpenAI GPT-2 weights
+    # 从gpt2模型初始化
     model = GPT.from_pretrained(init_from)
     if block_size < model.block_size:
         model.crop_block_size(block_size)
@@ -147,44 +130,44 @@ def estimate_loss(eval_iters=50):
     return out
 
 
-# optimizer
+# 优化器
 optimizer = model.configure_optimizers(weight_decay, learning_rate, betas)
 if init_from == "resume":
     optimizer.load_state_dict(checkpoint["optimizer"])
 
 
-# learning rate decay scheduler (cosine with warmup)
+# 学习率衰减调度器（带预热的余弦衰减）
 def get_lr(iter):
-    # 1) linear warmup for warmup_iters steps
+    # 1) 在预热步数内进行线性预热
     if iter < warmup_iters:
         return learning_rate * iter / warmup_iters
-    # 2) if iter > lr_decay_iters, return min learning rate
+    # 2) 如果迭代次数超过衰减步数，返回最小学习率
     if iter > lr_decay_iters:
         return min_lr
-    # 3) in between, use cosine decay down to min learning rate
+    # 3) 在预热和最大衰减步数之间，使用余弦衰减到最小学习率
     decay_ratio = (iter - warmup_iters) / (lr_decay_iters - warmup_iters)
     assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # ranges 0..1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # 范围在0到1之间
     return min_lr + coeff * (learning_rate - min_lr)
 
 
-# logging
+# 日志记录
 if wandb_log:
     wandb.init(project=wandb_project, entity=wandb_entity, name=wandb_run_name)
     wandb.config = {
         "batch_size": batch_size,
         "block_size": block_size,
-        "learning_rate": learning_rate,  # TODO log everything else too
+        "learning_rate": learning_rate,  # 待办：记录所有其他参数
     }
 
-# training loop
+# 训练循环
 iter_num = 0
 num_tokens = 0
 best_val_loss = 1e9
 t0 = time.time()
 while True:
 
-    # determine the learning rate for this iteration
+    # 根据迭代次数决定学习率
     if decay_lr:
         lr = get_lr(iter_num)
         for param_group in optimizer.param_groups:
@@ -210,9 +193,7 @@ while True:
             )
         if losses["val"] < best_val_loss:
             best_val_loss = losses["val"]
-            if (
-                iter_num > 0
-            ):  # don't save checkpoints on very first iteration...
+            if iter_num > 0:  # 当首次循环的时候不保存checkpoint
                 checkpoint = {
                     "model": model.state_dict(),
                     "optimizer": optimizer.state_dict(),
@@ -227,20 +208,17 @@ while True:
 
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
-    # TODO: gradient clipping
     optimizer.step()
 
     t1 = time.time()
     dt = t1 - t0
     t0 = t1
     if iter_num % log_interval == 0:
-        lossf = (
-            loss.item()
-        )  # loss as float. TODO CPU-GPU sync: profile, make sure not slow af
+        lossf = loss.item()
         print(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms")
     iter_num += 1
     num_tokens += X.numel()
 
-    # termination conditions
+    # 终止条件
     if iter_num >= max_iters:
         break
