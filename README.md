@@ -27,3 +27,10 @@ poetry install
 wandb login
 # 输入网站上的api-key
 ```
+
+## TODO
+
+* 增加batch大小
+* 增加验证效果
+* 全量训练
+* 更换token进行验证
