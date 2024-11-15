@@ -18,3 +18,12 @@ poetry run python data/prepare.py
 ```shell
 poetry install
 ```
+
+## 设置wandb
+
+在[wandb网址](https://wandb.ai/)进行注册，然后再本地端进行登录
+
+```shell
+wandb login
+# 输入网站上的api-key
+```
