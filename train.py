@@ -2,7 +2,7 @@ import math
 import os
 import time
 from datetime import datetime
-
+import gc
 import numpy as np
 import torch
 import wandb
@@ -22,7 +22,7 @@ wandb_project = "Chinese-GPT"
 wandb_run_name = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 # 数据相关
 dataset = "openwebtext"
-batch_size = 32
+batch_size = 8
 block_size = 512
 # 模型相关
 device = "cuda:0"
@@ -111,6 +111,10 @@ def estimate_loss(eval_iters=50):
             losses[k] = loss.item()
         out[split] = losses.mean()
     model.train()
+
+    # 评估后清理显存
+    gc.collect()  # 先进行Python的垃圾回收
+    torch.cuda.empty_cache()  # 释放PyTorch的CUDA缓存
     return out
 
 
@@ -183,7 +187,8 @@ while True:
                     "iter_num": iter_num,
                 }
                 torch.save(checkpoint, os.path.join(out_dir, "ckpt.pt"))
-
+                gc.collect()
+                torch.cuda.empty_cache()
     X, Y = get_batch("train")
     with torch.amp.autocast(device_type=device, dtype=torch.bfloat16):
         logits, loss = model(X, Y)
