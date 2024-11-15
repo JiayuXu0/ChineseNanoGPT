@@ -24,9 +24,7 @@ class WikiDataProcessor:
         combined_text = ""
         file_count = 0
 
-        for file_path in tqdm(
-            list(self.root_dir.rglob("*")), desc="处理文件"
-        ):
+        for file_path in tqdm(list(self.root_dir.rglob("*")), desc="处理文件"):
             if not file_path.is_file():
                 continue
 
@@ -95,7 +93,7 @@ class WikiDataProcessor:
         # 将文本分块
         def split_text(text: str) -> list:
             return [
-                text[i : i + chunk_size]
+                text[i : i + chunk_size]  # noqa
                 for i in range(0, len(text), chunk_size)
             ]
 
