@@ -1,37 +1,91 @@
 # ChineseNanoGPT
 
-中文的微型GPT2训练
+基于nanoGPT架构的中文语言模型训练实现。本项目受 [karpathy/nanoGPT](https://github.com/karpathy/nanoGPT) 启发,实现了对中文的支持。
 
-## 数据集
+## 功能特点
 
-* 中文维基数据集
-* 下载地址: [Link](https://pan.baidu.com/s/1v1sw8wb0NUvnSC4NlMuQfg?pwd=ba5n) 提取码: ba5n
-* 数据放在 data/wiki_zh 目录下
-* 读取数据，并进行token转换预处理并保存
+- 支持中文维基百科数据集训练
+- 使用BERT中文分词器
+- 支持混合精度训练
+- 集成Wandb可视化训练过程
+- 支持模型断点续训
+- 自动学习率调度
 
-```shell
-poetry run python data/prepare.py
+## 环境配置
+
+1. 安装依赖管理工具poetry:
+
+```bash
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-## 采用poetry进行项目管理
+2. 安装项目依赖:
 
-```shell
+```bash
 poetry install
 ```
 
-## 设置wandb
+3. 配置Wandb:
 
-在[wandb网址](https://wandb.ai/)进行注册，然后再本地端进行登录
+- 在[wandb.ai](https://wandb.ai/)注册账号
+- 本地登录:
 
-```shell
+```bash
 wandb login
-# 输入网站上的api-key
 ```
 
-## TODO
+## 数据准备
 
-* 增加batch大小
-* 增加验证效果
-* 全量训练
-* 更换token进行验证
-* 模型逻辑的梳理
+1. 下载中文维基数据集:
+
+- 下载地址: [百度网盘](https://pan.baidu.com/s/1v1sw8wb0NUvnSC4NlMuQfg?pwd=ba5n)
+- 提取码: ba5n
+
+2. 解压数据到 `data/wiki_zh` 目录
+
+3. 数据预处理:
+
+```bash
+poetry run python data/prepare.py
+```
+
+## 训练模型
+
+```bash
+poetry run python train.py
+```
+
+## 生成文本
+
+```bash
+poetry run python sample.py
+```
+
+## 开发计划
+
+- [ ] 优化训练超参数配置
+- [ ] 抽取配置到独立config文件
+- [ ] 支持更大batch size训练
+- [ ] 增加模型验证指标
+- [ ] 支持全量数据训练
+- [ ] 验证不同tokenizer效果
+- [ ] 梳理模型核心逻辑
+- [ ] 支持LLaMA架构
+- [ ] 支持C++推理
+
+## 技术细节
+
+- 模型架构: GPT-2
+- 分词器: BERT中文分词器
+- 训练框架: PyTorch
+- 显存优化: 混合精度训练
+- 训练监控: Wandb
+- 数据集: 中文维基百科
+
+## 贡献
+
+欢迎提交Issue和Pull Request!
+
+## 许可证
+
+MIT License
