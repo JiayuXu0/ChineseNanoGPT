@@ -49,7 +49,7 @@ class WikiDataProcessor:
         self, text: str, train_ratio: float = 0.9
     ) -> Tuple[str, str]:
         """分割训练集和验证集"""
-        text = text[int(0.999 * len(text)) :]  # noqa
+        # text = text[int(0.999 * len(text)) :]  # noqa
         n = len(text)
         return (
             text[: int(n * train_ratio)],
