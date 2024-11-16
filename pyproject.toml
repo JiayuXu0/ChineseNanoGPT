@@ -15,6 +15,7 @@ black = "^24.10.0"
 yapf = "^0.43.0"
 isort = "^5.13.2"
 wandb = "^0.18.7"
+pylint = "^3.3.1"
 
 
 [build-system]

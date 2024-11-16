@@ -19,7 +19,7 @@ checkpoint = torch.load(ckpt_path, map_location=device)
 # model
 gptconf = GPTConfig(**checkpoint["model_args"])
 model = GPT(gptconf)
-model = torch.compile(model, mode="reduce-overhead")
+model = torch.compile(model)
 model.load_state_dict(checkpoint["model"])
 model.eval()
 model.to(device)

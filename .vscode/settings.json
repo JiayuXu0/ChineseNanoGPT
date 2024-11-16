@@ -3,9 +3,8 @@
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
-    "python.linting.enabled": true,
-    "python.linting.flake8Enabled": true,
-    "python.formatting.blackArgs": [
-        "--line-length", "80"
+    "black-formatter.args": [
+        "--line-length",
+        "80"
     ]
 }
