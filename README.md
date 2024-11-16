@@ -63,13 +63,13 @@ poetry run python sample.py
 
 ## 开发计划
 
-- [ ] 优化训练超参数配置
+- [ ] 优化训练超参数配置，不同超参的结果和对比的意义
 - [ ] 抽取配置到独立config文件
 - [ ] 支持更大batch size训练
 - [ ] 增加模型验证指标
 - [ ] 支持全量数据训练
 - [ ] 验证不同tokenizer效果
-- [ ] 梳理模型核心逻辑
+- [ ] 梳理模型核心逻辑，使其train更加清晰
 - [ ] 支持LLaMA架构
 - [ ] 支持C++推理
 
@@ -85,7 +85,3 @@ poetry run python sample.py
 ## 贡献
 
 欢迎提交Issue和Pull Request!
-
-## 许可证
-
-MIT License
