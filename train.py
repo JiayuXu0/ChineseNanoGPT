@@ -35,6 +35,7 @@ dropout = 0
 n_layer = 12  # 从12降到8
 n_head = 12  # 从12降到8
 n_embd = 768  # 从768降到512
+dtype = torch.float16
 # adamw优化器参数
 gradient_accumulation_steps = 5 * 8
 learning_rate = 6e-4  # 最大学习率
@@ -102,7 +103,7 @@ if init_from == "scratch":
 model.to(device)
 
 # 使用 torch.compile 编译模型
-model = torch.compile(model, mode="reduce-overhead")
+model = torch.compile(model)
 
 
 @torch.no_grad()
@@ -113,7 +114,7 @@ def estimate_loss(eval_iters=50):
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
             X, Y = get_batch(split)
-            with torch.amp.autocast(device_type=device, dtype=torch.bfloat16):
+            with torch.amp.autocast(device_type=device, dtype=dtype):
                 logits, loss = model(X, Y)
             losses[k] = loss.item()
         out[split] = losses.mean()
@@ -126,7 +127,7 @@ def estimate_loss(eval_iters=50):
 
 
 # 优化器
-optimizer = model.configure_optimizers(weight_decay, learning_rate, betas)
+optimizer = model.configure_optimizers(weight_decay, learning_rate, betas, device)
 
 
 # 学习率衰减调度器（带预热的余弦衰减）
@@ -203,7 +204,7 @@ while True:
     is_accumulation_step = iter_num % gradient_accumulation_steps != 0
 
     X, Y = get_batch("train")
-    with torch.amp.autocast(device_type=device, dtype=torch.bfloat16):
+    with torch.amp.autocast(device_type=device, dtype=dtype):
         logits, loss = model(X, Y)
         # 根据梯度累积步数缩放损失
         loss = loss / gradient_accumulation_steps
