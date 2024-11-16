@@ -72,7 +72,7 @@ poetry run python sample.py
 - [ ] 梳理模型核心逻辑，使其 train 更加清晰
 - [ ] 支持 LLaMA 架构
 - [ ] 支持 C++推理
-- [ ] 增加 SFT, DPO
+- [ ] 增加 SFT, DPO, 测评
 
 ## 技术细节
 
