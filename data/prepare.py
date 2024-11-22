@@ -4,6 +4,7 @@ from typing import Tuple, Union
 
 import numpy as np
 from tqdm import tqdm
+from transformers import AutoTokenizer
 from transformers import BertTokenizer
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
@@ -49,7 +50,7 @@ class WikiDataProcessor:
         self, text: str, train_ratio: float = 0.9
     ) -> Tuple[str, str]:
         """分割训练集和验证集"""
-        # text = text[int(0.999 * len(text)) :]  # noqa
+        # text = text[int(0.99 * len(text)) :]  # noqa
         n = len(text)
         return (
             text[: int(n * train_ratio)],
@@ -58,17 +59,17 @@ class WikiDataProcessor:
 
     def init_tokenizer(self, model_name: str = "bert-base-chinese") -> None:
         """初始化分词器"""
-        self.tokenizer = BertTokenizer.from_pretrained(model_name)
+        # self.tokenizer = BertTokenizer.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B")
 
     def _tokenize_chunk(self, text_chunk: str) -> np.ndarray:
         """处理文本块的辅助函数"""
-        inputs = self.tokenizer(
-            text_chunk,
-            padding="max_length",
-            truncation=False,
-            return_tensors="pt",
-        )
-        return inputs["input_ids"].numpy().astype(np.uint16)
+        # inputs = self.tokenizer(
+        #     text_chunk,
+        #     return_tensors="pt",
+        # )
+        #return inputs["input_ids"].numpy().astype(np.uint16)
+        return np.array(self.tokenizer(text_chunk)["input_ids"]).astype(np.uint32)
 
     def tokenize_and_save(
         self,
@@ -76,7 +77,7 @@ class WikiDataProcessor:
         val_data: str,
         output_dir: Union[str, Path] = None,
         num_processes: int = None,
-        chunk_size: int = 1000000,
+        chunk_size: int = 131072,
     ) -> None:
         """对数据进行多进程分词并保存"""
         if self.tokenizer is None:
@@ -120,9 +121,9 @@ class WikiDataProcessor:
             )
 
         # 合并结果
-        train_ids = np.concatenate(train_results, axis=1)
-        val_ids = np.concatenate(val_results, axis=1)
-
+        train_ids = np.concatenate(train_results, axis=0)
+        val_ids = np.concatenate(val_results, axis=0)
+        print(train_ids.shape)
         # 保存结果
         train_ids.tofile(output_dir / "train.bin")
         val_ids.tofile(output_dir / "val.bin")

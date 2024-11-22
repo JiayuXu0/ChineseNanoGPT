@@ -22,10 +22,10 @@ log_interval = 1
 # wandb日志设置
 wandb_log = True
 wandb_project = "Chinese-GPT"
-wandb_run_name = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+wandb_run_name = f"qwen_tonken_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 # 数据相关
-batch_size = 8  # 从10降到4
-block_size = 1024  # 从1024降到512
+batch_size = 4  # 从10降到4
+block_size = 512  # 从1024降到512
 # 模型相关
 device = "cuda"
 init_from = (
@@ -37,7 +37,7 @@ n_head = 12  # 从12降到8
 n_embd = 768  # 从768降到512
 dtype = torch.float16
 # adamw优化器参数
-gradient_accumulation_steps = 5 * 8
+gradient_accumulation_steps = 5 * 8 * 2
 learning_rate = 6e-4  # 最大学习率
 max_iters = 600000  # 训练总迭代次数
 weight_decay = 1e-1
@@ -58,10 +58,10 @@ torch.backends.cudnn.allow_tf32 = True
 # 简易数据加载器
 data_dir = "data"
 train_data = np.memmap(
-    os.path.join(data_dir, "train.bin"), dtype=np.uint16, mode="r"
+    os.path.join(data_dir, "train.bin"), dtype=np.uint32, mode="r"
 )
 val_data = np.memmap(
-    os.path.join(data_dir, "val.bin"), dtype=np.uint16, mode="r"
+    os.path.join(data_dir, "val.bin"), dtype=np.uint32, mode="r"
 )
 
 

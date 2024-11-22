@@ -73,6 +73,7 @@ poetry run python sample.py
 - [ ] 支持 LLaMA 架构
 - [ ] 支持 C++推理
 - [ ] 增加 SFT, DPO, 测评
+- [ ] 不要使用线程池，超参的选择
 
 ## 技术细节
 
